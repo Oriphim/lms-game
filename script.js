@@ -1,4 +1,5 @@
-const API = "https://script.google.com/macros/s/AKfycbyrE6eIUkZwwS6JUdSj2UdaLqBF1CZbebthwbIgz2mQPxZb1d3Zl8qqlBJI_9j2_cg/exec"; // Replace with your deployed Apps Script URL
+// Frontend using standard fetch() via Cloudflare Worker (no JSONP needed)
+const API = "https://lms-proxy.htsangers2004.workers.dev/"; // <-- replace after deploying Worker
 let username = "";
 let state = {
   gw: null,
@@ -10,23 +11,7 @@ let state = {
 };
 let pendingPick = {};
 
-// --- JSONP helper ---
-function jsonp(url) {
-  return new Promise((resolve, reject) => {
-    const cb = "cb_" + Math.random().toString(36).slice(2);
-    const sep = url.includes("?") ? "&" : "?";
-    const script = document.createElement("script");
-    script.src = `${url}${sep}callback=${cb}`;
-    script.async = true;
-
-    window[cb] = (data) => { resolve(data); cleanup(); };
-    script.onerror = () => { reject(new Error("JSONP request failed")); cleanup(); };
-    function cleanup() { delete window[cb]; script.remove(); }
-    document.body.appendChild(script);
-  });
-}
-
-// Local cache: show instantly then revalidate
+// Local cache for instant paint
 function cacheKey(u) { return `lmsBundle_${u}`; }
 function saveCache(u, data) { try { localStorage.setItem(cacheKey(u), JSON.stringify({ ts: Date.now(), data })); } catch {} }
 function loadCache(u, maxAgeMs = 10 * 60 * 1000) {
@@ -39,9 +24,20 @@ function loadCache(u, maxAgeMs = 10 * 60 * 1000) {
   } catch { return null; }
 }
 
+async function fetchJSON(url, options={}) {
+  const res = await fetch(url, {
+    mode: "cors",
+    credentials: "omit",
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 function login() {
-  const passcode = encodeURIComponent(document.getElementById("passcode").value);
-  jsonp(`${API}?action=login&passcode=${passcode}`)
+  const passcode = document.getElementById("passcode").value.trim();
+  fetchJSON(`${API}?action=login`, { method: "POST", body: JSON.stringify({ action: "login", passcode }) })
     .then(d => {
       if (d.success) {
         username = d.username;
@@ -49,11 +45,8 @@ function login() {
         document.getElementById("game").style.display = "block";
         document.getElementById("username").innerText = username;
 
-        // Instant paint from cache if present
         const cached = loadCache(username);
         if (cached) applyBundle(cached);
-
-        // Fetch fresh in background (bypass server cache only if we didn't have client cache)
         loadBundle(!cached);
       } else {
         alert("Wrong passcode");
@@ -64,11 +57,9 @@ function login() {
 
 function loadBundle(bypass = false) {
   const bp = bypass ? "&bypass=1" : "";
-  return jsonp(`${API}?action=bundle&u=${encodeURIComponent(username)}${bp}`)
+  return fetchJSON(`${API}?action=bundle&u=${encodeURIComponent(username)}${bp}`)
     .then(applyBundle)
-    .catch(() => {
-      document.getElementById("fixtures").innerHTML = "<p>Couldn't load data.</p>";
-    });
+    .catch(() => { document.getElementById("fixtures").innerHTML = "<p>Couldn't load data.</p>"; });
 }
 
 function applyBundle(data) {
@@ -175,42 +166,26 @@ document.addEventListener("DOMContentLoaded", () => {
 function confirmPick() {
   const btn = document.getElementById("confirmPickBtn");
   btn.disabled = true;
-  // optimistic UI update
+
+  // Optimistic UI
   const prev = JSON.parse(JSON.stringify(state));
   applyOptimisticPick(pendingPick.gw, pendingPick.team);
   closeModal();
 
-  pick(pendingPick.gw, pendingPick.team)
-    .then(() => loadBundle(true))   // re-sync from server (bypass server cache)
-    .catch(() => {                   // revert on error
-      alert("Save failed, reverting");
-      state = prev;
-      renderAll();
-    })
+  fetchJSON(`${API}?action=pick`, { method: "POST", body: JSON.stringify({ action:"pick", username, gw: pendingPick.gw, team: pendingPick.team }) })
+    .then(() => loadBundle(true))
+    .catch(() => { alert("Save failed, reverting"); state = prev; renderAll(); })
     .finally(() => { btn.disabled = false; });
 }
 
 function applyOptimisticPick(gw, team) {
-  // update myPick
   state.myPick = { gw, team };
-  // update thisWeekPicks
   let found = false;
   state.thisWeekPicks = state.thisWeekPicks.map(p => {
     if (p.name === username) { found = true; return { name: p.name, team }; }
     return p;
   });
   if (!found) state.thisWeekPicks.push({ name: username, team });
-  // update myUsedTeams (do not add duplicates)
   if (!state.myUsedTeams.includes(team)) state.myUsedTeams.push(team);
   renderAll();
-}
-
-function pick(gw, team) {
-  const u = encodeURIComponent(username);
-  const t = encodeURIComponent(team);
-  const g = encodeURIComponent(gw);
-  return jsonp(`${API}?action=pick&username=${u}&gw=${g}&team=${t}`)
-    .then(d => {
-      if (!d.success) throw new Error(d.locked ? "Locked" : "Save failed");
-    });
 }
