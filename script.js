@@ -1,4 +1,4 @@
-const API = "https://script.google.com/macros/s/AKfycbzBcDlqB1KR2jUkqy-qGs3GML44HE3u5BpYa1sMbFApZazGOF9ccoRDaj_MBx3rM2Ah/exec"; // Replace with your deployed Apps Script URL
+const API = "https://script.google.com/macros/s/AKfycbyrE6eIUkZwwS6JUdSj2UdaLqBF1CZbebthwbIgz2mQPxZb1d3Zl8qqlBJI_9j2_cg/exec"; // Replace with your deployed Apps Script URL
 let username = "";
 let state = {
   gw: null,
@@ -28,9 +28,7 @@ function jsonp(url) {
 
 // Local cache: show instantly then revalidate
 function cacheKey(u) { return `lmsBundle_${u}`; }
-function saveCache(u, data) {
-  try { localStorage.setItem(cacheKey(u), JSON.stringify({ ts: Date.now(), data })); } catch {}
-}
+function saveCache(u, data) { try { localStorage.setItem(cacheKey(u), JSON.stringify({ ts: Date.now(), data })); } catch {} }
 function loadCache(u, maxAgeMs = 10 * 60 * 1000) {
   try {
     const raw = localStorage.getItem(cacheKey(u));
@@ -51,17 +49,12 @@ function login() {
         document.getElementById("game").style.display = "block";
         document.getElementById("username").innerText = username;
 
-        // 1) try cache -> instant paint
+        // Instant paint from cache if present
         const cached = loadCache(username);
-        if (cached) {
-          applyBundle(cached);
-        }
+        if (cached) applyBundle(cached);
 
-        // 2) fetch fresh in background (bypass cache on server only if no cached)
-        document.getElementById("loading").style.display = "block";
-        loadBundle(!cached).finally(() => {
-          document.getElementById("loading").style.display = "none";
-        });
+        // Fetch fresh in background (bypass server cache only if we didn't have client cache)
+        loadBundle(!cached);
       } else {
         alert("Wrong passcode");
       }
@@ -180,13 +173,36 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function confirmPick() {
-  // disable button briefly to avoid double submits
   const btn = document.getElementById("confirmPickBtn");
   btn.disabled = true;
-  pick(pendingPick.gw, pendingPick.team).finally(() => {
-    btn.disabled = false;
-    closeModal();
+  // optimistic UI update
+  const prev = JSON.parse(JSON.stringify(state));
+  applyOptimisticPick(pendingPick.gw, pendingPick.team);
+  closeModal();
+
+  pick(pendingPick.gw, pendingPick.team)
+    .then(() => loadBundle(true))   // re-sync from server (bypass server cache)
+    .catch(() => {                   // revert on error
+      alert("Save failed, reverting");
+      state = prev;
+      renderAll();
+    })
+    .finally(() => { btn.disabled = false; });
+}
+
+function applyOptimisticPick(gw, team) {
+  // update myPick
+  state.myPick = { gw, team };
+  // update thisWeekPicks
+  let found = false;
+  state.thisWeekPicks = state.thisWeekPicks.map(p => {
+    if (p.name === username) { found = true; return { name: p.name, team }; }
+    return p;
   });
+  if (!found) state.thisWeekPicks.push({ name: username, team });
+  // update myUsedTeams (do not add duplicates)
+  if (!state.myUsedTeams.includes(team)) state.myUsedTeams.push(team);
+  renderAll();
 }
 
 function pick(gw, team) {
@@ -195,12 +211,6 @@ function pick(gw, team) {
   const g = encodeURIComponent(gw);
   return jsonp(`${API}?action=pick&username=${u}&gw=${g}&team=${t}`)
     .then(d => {
-      if (d.success) {
-        // force fresh data after pick so banner + table + highlight update
-        return loadBundle(true);
-      } else {
-        alert(d.locked ? "Picks are locked for this GW." : "Failed to save pick");
-      }
-    })
-    .catch(() => alert("Network error saving pick"));
+      if (!d.success) throw new Error(d.locked ? "Locked" : "Save failed");
+    });
 }
