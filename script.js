@@ -58,3 +58,4 @@ function loadLeaderboard() {
     document.getElementById("leaderboard").innerHTML = html;
   });
 }
+
