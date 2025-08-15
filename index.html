@@ -1,46 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>LMS Game</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
-  table { width: 100%; }
-  table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px; }
-  th { background: #f6f6f6; text-align: left; }
-  #pickModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
-               background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
-  #pickModal > div { background:#fff; padding:20px; border-radius:8px; width:320px; text-align:center; }
-  button[disabled] { opacity: 0.5; cursor: not-allowed; }
-  .chip { display:inline-block; padding:2px 6px; border-radius:12px; background:#eef; margin-right:4px; }
-</style>
+  <title>LMS Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 960px; margin: 0 auto; }
+    table { width: 100%; }
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 6px; }
+    th { background: #f6f6f6; text-align: left; }
+    #pickModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+                 background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
+    #pickModal > div { background:#fff; padding:20px; border-radius:8px; width:320px; text-align:center; }
+    button[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .chip { display:inline-block; padding:2px 6px; border-radius:12px; background:#eef; margin:2px 4px 2px 0; }
+    .notice { background:#fff8e1; border:1px solid #ffe08a; padding:10px; border-radius:6px; margin:12px 0; }
+    .picked { outline: 2px solid #4caf50; }
+  </style>
 </head>
 <body>
-<h1>Last Man Standing</h1>
+  <h1>Last Man Standing</h1>
 
-<div id="login">
-  <input id="passcode" placeholder="Enter passcode" />
-  <button onclick="login()">Login</button>
-</div>
-
-<div id="game" style="display:none;">
-  <h3>Welcome, <span id="username"></span></h3>
-  <div id="yourPick"></div>
-  <h4>Fixtures</h4>
-  <div id="fixtures"></div>
-  <h4>Leaderboard</h4>
-  <div id="leaderboard"></div>
-</div>
-
-<div id="pickModal">
-  <div>
-    <h3>Confirm Your Pick</h3>
-    <p id="modalMatch"></p>
-    <button id="confirmPickBtn">Confirm</button>
-    <button onclick="closeModal()">Cancel</button>
+  <div id="login">
+    <input id="passcode" placeholder="Enter passcode" />
+    <button onclick="login()">Login</button>
   </div>
-</div>
 
-<script src="script.js"></script>
+  <div id="game" style="display:none;">
+    <h3>Welcome, <span id="username"></span></h3>
+    <div id="notice"></div>
+
+    <h4>This Week's Picks (<span id="gwLabel">GW?</span>)</h4>
+    <div id="thisWeekPicks"></div>
+
+    <h4>Fixtures (<span id="gwLabel2">GW?</span>)</h4>
+    <div id="fixtures"></div>
+  </div>
+
+  <div id="pickModal">
+    <div>
+      <h3>Confirm Your Pick</h3>
+      <p id="modalMatch"></p>
+      <button id="confirmPickBtn">Confirm</button>
+      <button onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
