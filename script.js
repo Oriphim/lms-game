@@ -4,24 +4,22 @@ let pendingPick = {};
 
 function login() {
   const passcode = document.getElementById("passcode").value;
-  fetch(API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "login", passcode })
-  })
-  .then(r=>r.json())
-  .then(d=>{
-    if(d.success){
-      username = d.username;
-      document.getElementById("login").style.display = "none";
-      document.getElementById("game").style.display = "block";
-      document.getElementById("username").innerText = username;
-      loadFixtures();
-      loadLeaderboard();
-    } else {
-      alert("Wrong passcode");
-    }
-  });
+  const body = new URLSearchParams({ action: "login", passcode });
+  fetch(API, { method: "POST", body })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        username = d.username;
+        document.getElementById("login").style.display = "none";
+        document.getElementById("game").style.display = "block";
+        document.getElementById("username").innerText = username;
+        loadFixtures();
+        loadLeaderboard();
+      } else {
+        alert("Wrong passcode");
+      }
+    })
+    .catch(err => alert("Network error logging in"));
 }
 
 function showModal(gw, team, match) {
@@ -34,9 +32,12 @@ function closeModal() {
   document.getElementById("pickModal").style.display = "none";
 }
 
-document.getElementById("confirmPickBtn").addEventListener("click", () => {
-  pick(pendingPick.gw, pendingPick.team);
-  closeModal();
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("confirmPickBtn");
+  if (btn) btn.addEventListener("click", () => {
+    pick(pendingPick.gw, pendingPick.team);
+    closeModal();
+  });
 });
 
 function loadFixtures() {
@@ -67,22 +68,25 @@ function loadFixtures() {
           html += "</table>";
           document.getElementById("fixtures").innerHTML = html;
         });
+    })
+    .catch(() => {
+      document.getElementById("fixtures").innerHTML = "<p>Couldn't load fixtures.</p>";
     });
 }
 
 function pick(gw, team) {
-  fetch(API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "pick", username, gw, team })
-  })
-  .then(r=>r.json())
-  .then(d=>{
-    if(d.success) {
-      alert(`Picked ${team} for GW${gw}`);
-      loadLeaderboard();
-    }
-  });
+  const body = new URLSearchParams({ action: "pick", username, gw, team });
+  fetch(API, { method: "POST", body })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        alert(`Picked ${team} for GW${gw}`);
+        loadLeaderboard();
+      } else {
+        alert("Failed to save pick");
+      }
+    })
+    .catch(() => alert("Network error saving pick"));
 }
 
 function loadLeaderboard() {
@@ -95,5 +99,8 @@ function loadLeaderboard() {
       });
       html += "</table>";
       document.getElementById("leaderboard").innerHTML = html;
+    })
+    .catch(() => {
+      document.getElementById("leaderboard").innerHTML = "<p>Couldn't load leaderboard.</p>";
     });
 }
