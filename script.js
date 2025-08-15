@@ -1,4 +1,4 @@
-const API = "https://script.google.com/macros/s/AKfycbyKLK-BQfVIc4vuy6J4q8Xiw9MlUl5sEB-_FOq_50KCE4uxdT09WaBFAEHhmzGo9uif/exec"; // Replace with your deployed Apps Script URL
+const API = "https://script.google.com/macros/s/AKfycbzBcDlqB1KR2jUkqy-qGs3GML44HE3u5BpYa1sMbFApZazGOF9ccoRDaj_MBx3rM2Ah/exec"; // Replace with your deployed Apps Script URL
 let username = "";
 let state = {
   gw: null,
@@ -26,6 +26,21 @@ function jsonp(url) {
   });
 }
 
+// Local cache: show instantly then revalidate
+function cacheKey(u) { return `lmsBundle_${u}`; }
+function saveCache(u, data) {
+  try { localStorage.setItem(cacheKey(u), JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
+function loadCache(u, maxAgeMs = 10 * 60 * 1000) {
+  try {
+    const raw = localStorage.getItem(cacheKey(u));
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > maxAgeMs) return null;
+    return data;
+  } catch { return null; }
+}
+
 function login() {
   const passcode = encodeURIComponent(document.getElementById("passcode").value);
   jsonp(`${API}?action=login&passcode=${passcode}`)
@@ -35,7 +50,18 @@ function login() {
         document.getElementById("login").style.display = "none";
         document.getElementById("game").style.display = "block";
         document.getElementById("username").innerText = username;
-        loadBundle(true);
+
+        // 1) try cache -> instant paint
+        const cached = loadCache(username);
+        if (cached) {
+          applyBundle(cached);
+        }
+
+        // 2) fetch fresh in background (bypass cache on server only if no cached)
+        document.getElementById("loading").style.display = "block";
+        loadBundle(!cached).finally(() => {
+          document.getElementById("loading").style.display = "none";
+        });
       } else {
         alert("Wrong passcode");
       }
@@ -45,21 +71,24 @@ function login() {
 
 function loadBundle(bypass = false) {
   const bp = bypass ? "&bypass=1" : "";
-  jsonp(`${API}?action=bundle&u=${encodeURIComponent(username)}${bp}`)
-    .then(data => {
-      state = {
-        gw: data.gw,
-        firstKickoff: data.firstKickoff ? new Date(data.firstKickoff) : null,
-        fixtures: data.fixtures || [],
-        thisWeekPicks: data.thisWeekPicks || [],
-        myUsedTeams: data.myUsedTeams || [],
-        myPick: data.myPick || null,
-      };
-      renderAll();
-    })
+  return jsonp(`${API}?action=bundle&u=${encodeURIComponent(username)}${bp}`)
+    .then(applyBundle)
     .catch(() => {
       document.getElementById("fixtures").innerHTML = "<p>Couldn't load data.</p>";
     });
+}
+
+function applyBundle(data) {
+  state = {
+    gw: data.gw,
+    firstKickoff: data.firstKickoff ? new Date(data.firstKickoff) : null,
+    fixtures: data.fixtures || [],
+    thisWeekPicks: data.thisWeekPicks || [],
+    myUsedTeams: data.myUsedTeams || [],
+    myPick: data.myPick || null,
+  };
+  saveCache(username, data);
+  renderAll();
 }
 
 function renderAll() {
