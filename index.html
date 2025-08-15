@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>LMS Game</title>
+<style>
+  body { font-family: Arial; padding: 20px; }
+  table, th, td { border: 1px solid black; border-collapse: collapse; padding: 4px; }
+</style>
+</head>
+<body>
+<h1>Last Man Standing</h1>
+
+<div id="login">
+  <input id="passcode" placeholder="Enter passcode">
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="game" style="display:none;">
+  <h3>Welcome, <span id="username"></span></h3>
+  <h4>Fixtures</h4>
+  <div id="fixtures"></div>
+  <h4>Leaderboard</h4>
+  <div id="leaderboard"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
