@@ -1,4 +1,4 @@
-const API = "PASTE_YOUR_WEB_APP_URL"; // Replace with your deployed Apps Script URL
+const API = "https://script.google.com/macros/s/AKfycbwdlVElxX6DOJ1tIxvsSwwgc3E85MMWoa7NuKrKh6em2bzZQXucVT4CsNxO_2s1uk1n/exec"; // Replace with your deployed Apps Script URL
 let username = "";
 let pendingPick = {};
 
