@@ -2,10 +2,10 @@ const API = "https://script.google.com/macros/s/AKfycbwdlVElxX6DOJ1tIxvsSwwgc3E8
 let username = "";
 let pendingPick = {};
 
+// Use GET-only to avoid CORS preflight to Apps Script web apps
 function login() {
-  const passcode = document.getElementById("passcode").value;
-  const body = new URLSearchParams({ action: "login", passcode });
-  fetch(API, { method: "POST", body })
+  const passcode = encodeURIComponent(document.getElementById("passcode").value);
+  fetch(`${API}?action=login&passcode=${passcode}`)
     .then(r => r.json())
     .then(d => {
       if (d.success) {
@@ -19,7 +19,7 @@ function login() {
         alert("Wrong passcode");
       }
     })
-    .catch(err => alert("Network error logging in"));
+    .catch(() => alert("Network error logging in"));
 }
 
 function showModal(gw, team, match) {
@@ -75,8 +75,10 @@ function loadFixtures() {
 }
 
 function pick(gw, team) {
-  const body = new URLSearchParams({ action: "pick", username, gw, team });
-  fetch(API, { method: "POST", body })
+  const u = encodeURIComponent(username);
+  const t = encodeURIComponent(team);
+  const g = encodeURIComponent(gw);
+  fetch(`${API}?action=pick&username=${u}&gw=${g}&team=${t}`)
     .then(r => r.json())
     .then(d => {
       if (d.success) {
