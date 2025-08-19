@@ -1,5 +1,5 @@
 // Using the Cloudflare Worker URL:
-const API = "https://YOUR_WORKER_SUBDOMAIN.workers.dev"; // <-- replace
+const API = "https://lms-proxy.htsangers2004.workers.dev/"; // <-- replace
 
 let username = "";
 let state = {
