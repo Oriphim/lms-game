@@ -1,4 +1,4 @@
-// Using the Cloudflare Worker URL:
+// Replace with your Cloudflare Worker URL
 const API = "https://lms-proxy.htsangers2004.workers.dev/"; // <-- replace
 
 let username = "";
@@ -26,6 +26,8 @@ async function fetchJSON(url, options={}) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+function isMidnightUTC(iso) { return typeof iso === "string" && /T00:00:00Z$/.test(iso); }
 
 function login() {
   const passcode = document.getElementById("passcode").value.trim();
@@ -71,7 +73,9 @@ function renderAll() {
   document.getElementById("gwLabel2").innerText = state.gw ?? "?";
 
   const li = document.getElementById("lockInfo");
-  li.textContent = state.firstKickoff ? `— picks lock at ${state.firstKickoff.toLocaleString("en-GB",{dateStyle:"medium", timeStyle:"short"})}` : "";
+  li.textContent = state.firstKickoff
+    ? `— picks lock at ${state.firstKickoff.toLocaleString("en-GB",{dateStyle:"medium", timeStyle:"short"})}`
+    : "— lock time TBD";
 
   renderStatus();
   renderNotice();
@@ -131,8 +135,12 @@ function renderFixtures() {
     const homeTitle = homeUsed ? 'title="Already used this team"' : "";
     const awayTitle = awayUsed ? 'title="Already used this team"' : "";
 
+    const kickoffCell = isMidnightUTC(f.date)
+      ? "TBD"
+      : new Date(f.date).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+
     html += `<tr>
-      <td>${new Date(f.date).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</td>
+      <td>${kickoffCell}</td>
       <td>${f.home}</td><td>${f.away}</td>
       <td>
         <button ${homeDisabled} class="${homeCls}" ${homeTitle}
@@ -157,6 +165,9 @@ function closeModal() { document.getElementById("pickModal").style.display = "no
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("confirmPickBtn");
   if (btn) btn.addEventListener("click", confirmPick);
+
+  // Bypass cache and reload everything
+  document.getElementById("refreshNow")?.addEventListener("click", () => loadBundle(true));
 });
 
 function confirmPick() {
